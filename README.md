@@ -1,2 +1,2 @@
 # football-commentary-research
-A research playground to analyse commentary of football matches
+A research playground to analyze commentary of football matches
