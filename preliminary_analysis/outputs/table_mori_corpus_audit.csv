@@ -1,0 +1,5 @@
+metric,count,pct,examples
+Total Wikipedia files in Mori release,3249,100.0,
+Files containing post-2017 future data (temporal leakage for 2014-2017 matches),3122,96.1,2018-2024 career transfers/stats & match results
+Wrong sport disambiguation (gridiron / American football),13,0.4,Aaron_Hunt_(gridiron_football); Adrian_Martinez_(American_football); Ben_Watson_(American_football); Carlos_Martínez_(American_football); David_Nugent_(American_football); Eric_Bailey_(American_football)
+Wrong birth era (<1970 or >2000 for 2014-2017 players),21,0.65,"Álvaro_Pereira_(footballer,_born_1904); André_Gomes_(footballer,_born_2004); Antonio_Marin_(footballer,_born_2001); Bernardo_Silva_(footballer,_born_2001); Callum_Wilson_(footballer,_born_2004); David_Ruiz_(footballer,_born_2004)"

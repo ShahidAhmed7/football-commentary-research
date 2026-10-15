@@ -1,0 +1,6 @@
+target_event,n_events,frac_prev_le_1s,frac_prev_le_2s,frac_prev_le_5s,frac_prev_le_10s,dominant_preceding_event,median_lag_from_dominant_s
+Goal,1703,0.788,0.908,0.92,0.928,Shots on target,0.61
+Yellow card,2047,0.015,0.032,0.209,0.685,Foul,7.14
+Red card,55,0.018,0.018,0.236,0.709,Foul,6.77
+Corner,4836,0.001,0.001,0.005,0.038,Ball out of play,24.78
+Penalty,173,0.468,0.468,0.468,0.468,Shots on target,0.0

@@ -1,0 +1,15 @@
+# Private research files (local only)
+preliminary_analysis_guide.md
+preliminary_analysis/pilot_study_plan.*
+football-commentary.pdf
+football_commentary_stack_sources.md
+football_tactical_commentary_literature_review_2025_2026.md
+tmp/
+
+# Datasets stay local (download from original sources)
+data/
+
+# Python / Jupyter noise
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store

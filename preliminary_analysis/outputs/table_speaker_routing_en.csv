@@ -1,0 +1,6 @@
+task,n,pos_rate,auroc,ap
+"Who speaks next (Events only, all test)",20852,0.368,0.7113,0.6082
+"Who speaks next (Events only, <=45s after Goal)",617,0.687,0.7921,0.8489
+"Who speaks next (Events only, <=45s after Shot on target)",2037,0.542,0.7726,0.7782
+"Who speaks next (Events + Turn state, all test)",20852,0.368,0.8929,0.8578
+Speaker handoff on next clause (Events + Turn state),20802,0.208,0.8162,0.6142
