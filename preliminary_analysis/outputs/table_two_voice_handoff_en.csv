@@ -1,4 +1,4 @@
-event,window_s,n_utt,colour_share,colour_ci,notebook_bg_rate,notebook_ci,median_words,median_dur_s
+event,window_s,n_utt,colour_share,colour_ci,gpt_bg_rate,gpt_bg_ci,median_words,median_dur_s
 Goal,"(-60, -30]",1835,0.399,"[0.362,0.445]",0.202,"[0.177,0.225]",8.0,2.52
 Goal,"(-30, -15]",855,0.384,"[0.344,0.432]",0.195,"[0.164,0.226]",8.0,2.5
 Goal,"(-15, -5]",628,0.205,"[0.159,0.250]",0.177,"[0.140,0.213]",6.0,2.09

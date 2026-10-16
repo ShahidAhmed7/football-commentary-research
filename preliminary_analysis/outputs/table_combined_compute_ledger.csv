@@ -1,0 +1,13 @@
+item,where,est_cost_usd
+This notebook (Parts A–B),Local CPU,0.0
+Exp 1 (Gold + Calibration),Local + Modal L4 ($0.80/h),0.8
+Exp 1 (Bulk Silver Labels),Modal H100 ($3.95/h),3.5
+Exp 2 & Exp 3 (Tactics & Buildup),Local M5 Air CPU,0.0
+Exp 4 (Routers & Notebook),Local + Modal L4 ($0.80/h),0.4
+Exp 5 (M5 Air Benchmark),Local M5 Air + Modal L4,0.8
+"H1 Zero-shot open decision models on our decisions (Von, Laya, Kev-0.8B/4B, NanoJev)",Modal L4,1.6
+H2 Fine-tune a ~395M encoder decision model (Apache-2.0) on serialized match state,Modal L4,3.2
+"H3 Teacher labels for content class (C1-C7) on 99,800 turns, then distil into H2",Modal H100,3.95
+"H4 Sequence model over event + turn tokens, all 8 languages, vs HGB",Modal L4,2.4
+H5 Calibration training (Brier + label smoothing) and temperature sweep for H2,Modal L4,1.2
+"H6 Verifier: does a System-2 sentence match the event state? (H2 head, synthetic negatives)",Modal L4,1.6

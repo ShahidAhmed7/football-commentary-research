@@ -1,6 +1,15 @@
-task,n,pos_rate,auroc,ap
-"Who speaks next (Events only, all test)",20852,0.368,0.7113,0.6082
-"Who speaks next (Events only, <=45s after Goal)",617,0.687,0.7921,0.8489
-"Who speaks next (Events only, <=45s after Shot on target)",2037,0.542,0.7726,0.7782
-"Who speaks next (Events + Turn state, all test)",20852,0.368,0.8929,0.8578
-Speaker handoff on next clause (Events + Turn state),20802,0.208,0.8162,0.6142
+target,subset,model,n,pos_rate,auroc,auroc_ci,ap,ap_ci
+y_bg (GPT Binary Bg),All 2-Voice Test Turns,Events Only (HGB),20852,0.196,0.6065,"[0.594,0.620]",0.2614,"[0.246,0.278]"
+y_bg (GPT Binary Bg),<=45s After Goal,Events Only (HGB),617,0.269,0.5702,"[0.546,0.607]",0.3252,"[0.287,0.380]"
+is_colour (Speaker Role),All 2-Voice Test Turns,Baseline: Same Speaker as Prev Turn,20852,0.368,0.7763,"[0.756,0.792]",0.6192,"[0.578,0.647]"
+is_colour (Speaker Role),All 2-Voice Test Turns,Events Only (HGB),20852,0.368,0.7113,"[0.695,0.731]",0.6082,"[0.562,0.642]"
+is_colour (Speaker Role),All 2-Voice Test Turns,Events + Turn State (HGB),20852,0.368,0.8929,"[0.880,0.906]",0.8578,"[0.830,0.880]"
+is_colour (Speaker Role),<=45s After Goal,Baseline: Same Speaker as Prev Turn,617,0.687,0.8279,"[0.785,0.852]",0.8759,"[0.833,0.915]"
+is_colour (Speaker Role),<=45s After Goal,Events Only (HGB),617,0.687,0.7921,"[0.702,0.871]",0.8489,"[0.732,0.942]"
+is_colour (Speaker Role),<=45s After Goal,Events + Turn State (HGB),617,0.687,0.9344,"[0.913,0.949]",0.97,"[0.951,0.983]"
+is_colour (Speaker Role),<=45s After Shot on Target,Events Only (HGB),2037,0.542,0.7726,"[0.736,0.823]",0.7782,"[0.707,0.848]"
+switched (Speaker Handoff),All 2-Voice Test Turns (t>1),Events Only (HGB),20802,0.208,0.5879,"[0.577,0.602]",0.2683,"[0.250,0.291]"
+switched (Speaker Handoff),All 2-Voice Test Turns (t>1),Events + Turn State (HGB),20802,0.208,0.8162,"[0.799,0.834]",0.6142,"[0.579,0.650]"
+is_colour (Speaker Role),All 2-Voice Test Turns,"Events + Turn State w/o gap (HGB, ablation)",20852,0.368,0.8665,"[0.852,0.881]",0.8072,"[0.776,0.831]"
+is_colour (Speaker Role),<=45s After Goal,"Events + Turn State w/o gap (HGB, ablation)",617,0.687,0.9145,"[0.880,0.937]",0.9592,"[0.936,0.977]"
+switched (Speaker Handoff),All 2-Voice Test Turns (t>1),"Events + Turn State w/o gap (HGB, ablation)",20802,0.208,0.7624,"[0.749,0.776]",0.4695,"[0.442,0.506]"

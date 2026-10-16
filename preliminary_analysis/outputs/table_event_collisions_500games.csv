@@ -1,6 +1,7 @@
-target_event,n_events,frac_prev_le_1s,frac_prev_le_2s,frac_prev_le_5s,frac_prev_le_10s,dominant_preceding_event,median_lag_from_dominant_s
-Goal,1703,0.788,0.908,0.92,0.928,Shots on target,0.61
-Yellow card,2047,0.015,0.032,0.209,0.685,Foul,7.14
-Red card,55,0.018,0.018,0.236,0.709,Foul,6.77
-Corner,4836,0.001,0.001,0.005,0.038,Ball out of play,24.78
-Penalty,173,0.468,0.468,0.468,0.468,Shots on target,0.0
+target_event,n_events,frac_eq_0s_coannot,frac_gt0_le_2s,frac_prev_le_1s,frac_prev_le_2s,frac_prev_le_5s,frac_prev_le_10s,dominant_preceding_event,dom_share_all_lags,dom_share_le_2s,median_lag_from_dominant_s
+Goal,1703,0.001,0.907,0.788,0.908,0.92,0.928,Shots on target,0.838,0.825,0.61
+Penalty,173,0.387,0.081,0.468,0.468,0.468,0.468,Shots on target,0.405,0.405,0.0
+Yellow card,2047,0.001,0.03,0.015,0.032,0.209,0.685,Foul,0.85,0.008,7.14
+Red card,55,0.0,0.018,0.018,0.018,0.236,0.709,Foul,0.8,0.0,6.77
+Corner,4836,0.0,0.001,0.001,0.001,0.005,0.038,Ball out of play,0.961,0.0,24.78
+Substitution,2839,0.023,0.02,0.034,0.043,0.058,0.089,Ball out of play,0.51,0.001,29.36

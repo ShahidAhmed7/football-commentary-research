@@ -1,0 +1,9 @@
+proxy,params_M,seq_len,p50_ms_fp32_4threads,calls_per_min_event_and_onset_triggered,cpu_busy_pct_event_triggered,cpu_busy_pct_if_called_every_second
+~395M encoder (ModernBERT-large class),404.3,64,160.9,11.46,3.07,16.1
+~395M encoder (ModernBERT-large class),404.3,128,249.7,11.46,4.77,25.0
+~395M encoder (ModernBERT-large class),404.3,256,379.5,11.46,7.25,38.0
+~395M encoder (ModernBERT-large class),404.3,512,1188.3,11.46,22.69,118.8
+~150M encoder (ModernBERT-base class),152.1,64,44.5,11.46,0.85,4.4
+~150M encoder (ModernBERT-base class),152.1,128,62.8,11.46,1.2,6.3
+~150M encoder (ModernBERT-base class),152.1,256,110.8,11.46,2.12,11.1
+~150M encoder (ModernBERT-base class),152.1,512,219.7,11.46,4.2,22.0

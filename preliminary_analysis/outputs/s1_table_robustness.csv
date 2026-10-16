@@ -1,0 +1,9 @@
+condition,onset_AUROC,colour_AUROC,colour_drop_vs_clean
+clean,0.7866,0.8751,0.0
+feed delay 2 s,0.7851,0.8727,-0.0024
+feed delay 4 s,0.7841,0.8686,-0.0065
+feed delay 8 s,0.7828,0.8599,-0.0152
+drop 10% of events,0.7862,0.8735,-0.0016
+drop 30% of events,0.7856,0.8699,-0.0052
+duplicate 20% of events (+0.2-1.0 s),0.7865,0.8752,0.0001
+swap 10% of speaker IDs,0.7847,0.8483,-0.0268

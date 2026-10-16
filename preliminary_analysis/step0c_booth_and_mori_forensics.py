@@ -1,25 +1,35 @@
 import glob, json, os, re, urllib.parse
-import numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics.pairwise import linear_kernel
 
 SN = os.environ.get("SN_LABELS_DIR", "data/soccernet_labels")
 LFCBI = os.environ.get("LFCBI_DIR", "data/lfcbi/data")
-OUT = os.environ.get("OUT_DIR", "preliminary_analysis/outputs")
+# Separate from the notebook's outputs so script runs never overwrite the notebook's tables
+OUT = os.environ.get("OUT_DIR", "preliminary_analysis/outputs/script_runs")
 os.makedirs(OUT, exist_ok=True)
 rng = np.random.default_rng(42)
 
-CLASSES = ["Penalty", "Kick-off", "Goal", "Substitution", "Offside", "Shots on target", "Shots off target",
-           "Clearance", "Ball out of play", "Throw-in", "Foul", "Indirect free-kick", "Direct free-kick",
-           "Corner", "Yellow card", "Red card", "Yellow->red card"]
+CLASSES = [
+    "Penalty", "Kick-off", "Goal", "Substitution", "Offside", "Shots on target", "Shots off target",
+    "Clearance", "Ball out of play", "Throw-in", "Foul", "Indirect free-kick", "Direct free-kick",
+    "Corner", "Yellow card", "Red card", "Yellow->red card"
+]
 CAP = 300.0
 
 # 1. Load LFCBI splits + events
-df = pd.concat([pd.read_csv(f"{LFCBI}/spotting/{s}.csv",
-                            usecols=["id", "game", "half", "start", "end", "text", "language", "speaker", "付加的情報か", "split"])
-                for s in ["train", "valid", "test"]], ignore_index=True)
+df = pd.concat([
+    pd.read_csv(
+        f"{LFCBI}/spotting/{s}.csv",
+        usecols=["id", "game", "half", "start", "end", "text", "language", "speaker", "付加的情報か", "split"]
+    )
+    for s in ["train", "valid", "test"]
+], ignore_index=True)
 en = df[df.language == "en"].dropna(subset=["half", "start", "end", "speaker", "付加的情報か", "text"]).copy()
-en["half"] = en.half.astype(int)
+en["half"] = en["half"].astype(int)
 en["n_words"] = en.text.str.split().str.len()
 en["dur"] = en["end"] - en["start"]
 en["y_bg"] = en["付加的情報か"].astype(int)
@@ -29,12 +39,14 @@ for g in en.game.unique():
     p = f"{SN}/{g}/Labels-v2.json"
     if os.path.exists(p):
         ann = json.load(open(p))["annotations"]
-        events[g] = pd.DataFrame([{"half": int(a["gameTime"].split(" - ")[0]),
-                                   "t": int(a["position"]) / 1000.0,
-                                   "label": a["label"],
-                                   "shown": a.get("visibility") == "visible"} for a in ann]).sort_values("t")
+        events[g] = pd.DataFrame([{
+            "half": int(a["gameTime"].split(" - ")[0]),
+            "t": int(a["position"]) / 1000.0,
+            "label": a["label"],
+            "shown": a.get("visibility") == "visible"
+        } for a in ann]).sort_values("t")
 
-# 2. Strictly out-of-goal speaker role assignment (Lead_PBP = "Marcus", Colour_Analyst = "Gary")
+# 2. Strictly out-of-goal speaker role assignment (Lead_PBP vs Colour_Analyst)
 non_goal = []
 for (g, h), u in en.groupby(["game", "half"]):
     if g not in events:
@@ -60,7 +72,13 @@ top2["role"] = top2.groupby(["game", "half"])["n_short"].rank(ascending=False, m
 en2 = en.merge(top2[["game", "half", "speaker", "role"]], on=["game", "half", "speaker"])
 en2["is_colour"] = (en2.role == "Colour_Analyst").astype(int)
 
-# 3. Three-phase event-handoff curves with game-clustered bootstrap CIs
+first_in_half = en2.sort_values("start").groupby(["game", "half"]).first()
+n_first_lead = int((first_in_half["role"] == "Lead_PBP").sum())
+n_two_halves = len(first_in_half)
+print(f"English diarized halves: {en.groupby(['game','half']).ngroups} total -> {n_two_halves} two-speaker halves ({len(en2):,} top-2 turns)")
+print(f"First utterance of half spoken by Lead_PBP: {n_first_lead}/{n_two_halves} ({n_first_lead/n_two_halves:.1%})")
+
+# 3. Post-event turn-taking curves with game-clustered bootstrap CIs
 bins = [-60, -30, -15, -5, 0, 5, 15, 30, 45, 60]
 handoff_rows = []
 for ev_type in ["Goal", "Foul", "Yellow card", "Shots on target", "Corner", "Substitution", "Random_Control"]:
@@ -96,18 +114,19 @@ for ev_type in ["Goal", "Foul", "Yellow card", "Shots on target", "Corner", "Sub
             "event": ev_type, "window_s": str(win), "n_utt": len(grp),
             "colour_share": round(grp.is_colour.mean(), 3),
             "colour_ci": f"[{c_lo:.3f},{c_hi:.3f}]",
-            "notebook_bg_rate": round(grp.y_bg.mean(), 3),
-            "notebook_ci": f"[{nb_lo:.3f},{nb_hi:.3f}]",
+            "gpt_bg_rate": round(grp.y_bg.mean(), 3),
+            "gpt_bg_ci": f"[{nb_lo:.3f},{nb_hi:.3f}]",
             "median_words": float(grp.n_words.median()),
             "median_dur_s": round(float(grp.dur.median()), 2),
         })
 handoff_df = pd.DataFrame(handoff_rows)
 handoff_df.to_csv(f"{OUT}/table_two_voice_handoff_en.csv", index=False)
 
-# 4. Speaker routing & handoff predictability on the held-out test split
+# 4. Speaker routing & handoff predictability on the held-out test split (with persistence baseline & CIs)
 rows = []
 for (g, h), u in en2.sort_values("start").groupby(["game", "half"]):
-    ev = events[g]; ev = ev[ev.half == h]
+    ev = events[g]
+    ev = ev[ev.half == h]
     et, el = ev.t.to_numpy(), ev.label.to_numpy()
     prev_end, prev_dur, prev_col, run_sec = np.nan, np.nan, np.nan, 0.0
     for r in u.itertuples():
@@ -133,85 +152,178 @@ for (g, h), u in en2.sort_values("start").groupby(["game", "half"]):
         prev_end, prev_dur, prev_col = r.end, r.dur, r.is_colour
 
 feat_df = pd.DataFrame(rows)
-tr, va, te = (feat_df[feat_df.split == s] for s in ["train", "valid", "test"])
+tr, va, te = (feat_df[feat_df.split == s].copy() for s in ["train", "valid", "test"])
 EV = ["half", "clock", "min_since_any", "n_ev_60", "n_ev_15"] + ["since_" + c for c in CLASSES]
 TURN = EV + ["gap", "prev_dur", "prev_colour", "run_sec"]
 
-clf_ev = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr[EV], tr.is_colour)
-pt_ev = clf_ev.predict_proba(te[EV])[:, 1]
-clf_tu = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr[TURN], tr.is_colour)
-pt_tu = clf_tu.predict_proba(te[TURN])[:, 1]
+clf_spk_ev = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr[EV], tr.is_colour)
+clf_spk_tu = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr[TURN], tr.is_colour)
+clf_bg_ev = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr[EV], tr.y_bg)
 
-tr_v = tr[tr.prev_colour >= 0].copy(); te_v = te[te.prev_colour >= 0].copy()
+te["p_spk_ev"] = clf_spk_ev.predict_proba(te[EV])[:, 1]
+te["p_spk_tu"] = clf_spk_tu.predict_proba(te[TURN])[:, 1]
+te["p_bg_ev"] = clf_bg_ev.predict_proba(te[EV])[:, 1]
+te["p_spk_persist"] = np.where(te["prev_colour"] >= 0, te["prev_colour"], tr["is_colour"].mean())
+
+tr_v = tr[tr.prev_colour >= 0].copy()
+te_v = te[te.prev_colour >= 0].copy()
 tr_v["switched"] = (tr_v.is_colour != tr_v.prev_colour).astype(int)
 te_v["switched"] = (te_v.is_colour != te_v.prev_colour).astype(int)
-clf_sw = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr_v[TURN], tr_v.switched)
-psw = clf_sw.predict_proba(te_v[TURN])[:, 1]
+clf_sw_ev = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr_v[EV], tr_v.switched)
+clf_sw_tu = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.05, random_state=0).fit(tr_v[TURN], tr_v.switched)
+te_v["p_sw_ev"] = clf_sw_ev.predict_proba(te_v[EV])[:, 1]
+te_v["p_sw_tu"] = clf_sw_tu.predict_proba(te_v[TURN])[:, 1]
 
-spk_res = [
-    {"task": "Who speaks next (Events only, all test)", "n": len(te), "pos_rate": round(te.is_colour.mean(), 3),
-     "auroc": round(roc_auc_score(te.is_colour, pt_ev), 4), "ap": round(average_precision_score(te.is_colour, pt_ev), 4)},
-    {"task": "Who speaks next (Events only, <=45s after Goal)", "n": int((te["since_Goal"] <= 45).sum()),
-     "pos_rate": round(te.is_colour[te["since_Goal"] <= 45].mean(), 3),
-     "auroc": round(roc_auc_score(te.is_colour[te["since_Goal"] <= 45], pt_ev[te["since_Goal"] <= 45]), 4),
-     "ap": round(average_precision_score(te.is_colour[te["since_Goal"] <= 45], pt_ev[te["since_Goal"] <= 45]), 4)},
-    {"task": "Who speaks next (Events only, <=45s after Shot on target)", "n": int((te["since_Shots on target"] <= 45).sum()),
-     "pos_rate": round(te.is_colour[te["since_Shots on target"] <= 45].mean(), 3),
-     "auroc": round(roc_auc_score(te.is_colour[te["since_Shots on target"] <= 45], pt_ev[te["since_Shots on target"] <= 45]), 4),
-     "ap": round(average_precision_score(te.is_colour[te["since_Shots on target"] <= 45], pt_ev[te["since_Shots on target"] <= 45]), 4)},
-    {"task": "Who speaks next (Events + Turn state, all test)", "n": len(te), "pos_rate": round(te.is_colour.mean(), 3),
-     "auroc": round(roc_auc_score(te.is_colour, pt_tu), 4), "ap": round(average_precision_score(te.is_colour, pt_tu), 4)},
-    {"task": "Speaker handoff on next clause (Events + Turn state)", "n": len(te_v), "pos_rate": round(te_v.switched.mean(), 3),
-     "auroc": round(roc_auc_score(te_v.switched, psw), 4), "ap": round(average_precision_score(te_v.switched, psw), 4)},
+def boot_auc_ap(df_sub, y_col, p_col, n_boot=200, seed=42):
+    b_rng = np.random.default_rng(seed)
+    games = df_sub["game"].unique()
+    grouped = {g: df_sub[df_sub["game"] == g] for g in games}
+    aucs, aps = [], []
+    for _ in range(n_boot):
+        sg = b_rng.choice(games, size=len(games), replace=True)
+        sub = pd.concat([grouped[g] for g in sg], ignore_index=True)
+        if sub[y_col].nunique() < 2:
+            continue
+        aucs.append(roc_auc_score(sub[y_col], sub[p_col]))
+        aps.append(average_precision_score(sub[y_col], sub[p_col]))
+    return (
+        f"[{np.percentile(aucs, 2.5):.3f},{np.percentile(aucs, 97.5):.3f}]",
+        f"[{np.percentile(aps, 2.5):.3f},{np.percentile(aps, 97.5):.3f}]"
+    )
+
+te_goal45 = te[te["since_Goal"] <= 45].copy()
+te_shot45 = te[te["since_Shots on target"] <= 45].copy()
+
+eval_specs = [
+    ("y_bg (GPT Binary Bg)", "All 2-Voice Test Turns", te, "y_bg", "p_bg_ev", "Events Only (HGB)"),
+    ("y_bg (GPT Binary Bg)", "<=45s After Goal", te_goal45, "y_bg", "p_bg_ev", "Events Only (HGB)"),
+    ("is_colour (Speaker Role)", "All 2-Voice Test Turns", te, "is_colour", "p_spk_persist", "Baseline: Same Speaker as Prev Turn"),
+    ("is_colour (Speaker Role)", "All 2-Voice Test Turns", te, "is_colour", "p_spk_ev", "Events Only (HGB)"),
+    ("is_colour (Speaker Role)", "All 2-Voice Test Turns", te, "is_colour", "p_spk_tu", "Events + Turn State (HGB)"),
+    ("is_colour (Speaker Role)", "<=45s After Goal", te_goal45, "is_colour", "p_spk_persist", "Baseline: Same Speaker as Prev Turn"),
+    ("is_colour (Speaker Role)", "<=45s After Goal", te_goal45, "is_colour", "p_spk_ev", "Events Only (HGB)"),
+    ("is_colour (Speaker Role)", "<=45s After Goal", te_goal45, "is_colour", "p_spk_tu", "Events + Turn State (HGB)"),
+    ("is_colour (Speaker Role)", "<=45s After Shot on Target", te_shot45, "is_colour", "p_spk_ev", "Events Only (HGB)"),
+    ("switched (Speaker Handoff)", "All 2-Voice Test Turns (t>1)", te_v, "switched", "p_sw_ev", "Events Only (HGB)"),
+    ("switched (Speaker Handoff)", "All 2-Voice Test Turns (t>1)", te_v, "switched", "p_sw_tu", "Events + Turn State (HGB)"),
 ]
+
+spk_res = []
+for tgt, subset_name, d_sub, y_c, p_c, m_name in eval_specs:
+    auc_ci, ap_ci = boot_auc_ap(d_sub, y_c, p_c)
+    spk_res.append({
+        "target": tgt,
+        "subset": subset_name,
+        "model": m_name,
+        "n": len(d_sub),
+        "pos_rate": round(float(d_sub[y_c].mean()), 3),
+        "auroc": round(float(roc_auc_score(d_sub[y_c], d_sub[p_c])), 4),
+        "auroc_ci": auc_ci,
+        "ap": round(float(average_precision_score(d_sub[y_c], d_sub[p_c])), 4),
+        "ap_ci": ap_ci,
+    })
 pd.DataFrame(spk_res).to_csv(f"{OUT}/table_speaker_routing_en.csv", index=False)
 
 # 5. Event collision / coalescing analysis across all 500 SoccerNet games
-files = glob.glob(f"{SN}/**/Labels-v2.json", recursive=True)
+files = sorted(glob.glob(f"{SN}/**/Labels-v2.json", recursive=True))
 evs = []
 for f in files:
     g = f[len(SN) + 1:-len("/Labels-v2.json")]
     for a in json.load(open(f))["annotations"]:
-        evs.append({"game": g, "half": int(a["gameTime"].split(" - ")[0]),
-                    "t": int(a["position"]) / 1000.0, "label": a["label"]})
+        evs.append({
+            "game": g,
+            "half": int(a["gameTime"].split(" - ")[0]),
+            "t": int(a["position"]) / 1000.0,
+            "label": a["label"]
+        })
 edf = pd.DataFrame(evs).sort_values(["game", "half", "t"]).reset_index(drop=True)
 edf["prev_t"] = edf.groupby(["game", "half"])["t"].shift(1)
 edf["prev_label"] = edf.groupby(["game", "half"])["label"].shift(1)
 edf["dt_prev"] = edf["t"] - edf["prev_t"]
 
-col_rows = []
-for target in ["Goal", "Yellow card", "Red card", "Corner", "Penalty"]:
-    sub = edf[edf.label == target]
-    top_prev = sub[sub.dt_prev <= 15].prev_label.value_counts()
-    top_name = top_prev.index[0] if len(top_prev) else "None"
-    med_dt = sub[sub.prev_label == top_name].dt_prev.median() if len(top_prev) else np.nan
-    col_rows.append({
-        "target_event": target, "n_events": len(sub),
+coll_rows = []
+for tgt in ["Goal", "Penalty", "Yellow card", "Red card", "Corner", "Substitution"]:
+    sub = edf[edf.label == tgt].dropna(subset=["dt_prev"])
+    dom = sub.prev_label.value_counts().index[0]
+    dom_lag = sub[sub.prev_label == dom].dt_prev.median()
+    coll_rows.append({
+        "target_event": tgt,
+        "n_events": len(edf[edf.label == tgt]),
+        "frac_eq_0s_coannot": round(float((sub.dt_prev == 0.0).mean()), 3),
+        "frac_gt0_le_2s": round(float(((sub.dt_prev > 0.0) & (sub.dt_prev <= 2.0)).mean()), 3),
         "frac_prev_le_1s": round(float((sub.dt_prev <= 1.0).mean()), 3),
         "frac_prev_le_2s": round(float((sub.dt_prev <= 2.0).mean()), 3),
         "frac_prev_le_5s": round(float((sub.dt_prev <= 5.0).mean()), 3),
         "frac_prev_le_10s": round(float((sub.dt_prev <= 10.0).mean()), 3),
-        "dominant_preceding_event": top_name,
-        "median_lag_from_dominant_s": round(float(med_dt), 2),
+        "dominant_preceding_event": dom,
+        "dom_share_all_lags": round(float((sub.prev_label == dom).mean()), 3),
+        "dom_share_le_2s": round(float(((sub.prev_label == dom) & (sub.dt_prev <= 2.0)).mean()), 3),
+        "median_lag_from_dominant_s": round(float(dom_lag), 2),
     })
-pd.DataFrame(col_rows).to_csv(f"{OUT}/table_event_collisions_500games.csv", index=False)
+pd.DataFrame(coll_rows).to_csv(f"{OUT}/table_event_collisions_500games.csv", index=False)
 
-# 6. Forensic audit of Mori et al.'s 3,249 Wikipedia files
+# 6. Forensic audit of Mori et al.'s released Wikipedia RAG corpus (3,249 files vs 3,257 reported)
 wiki_dir = f"{LFCBI}/addinfo_retrieval"
-if os.path.exists(wiki_dir):
-    wfiles = [f for f in sorted(os.listdir(wiki_dir)) if f.endswith(".txt")]
-    names = [urllib.parse.unquote(f[:-4]) for f in wfiles]
-    wrong_sport = [n for n in names if any(k in n.lower() for k in ["gridiron", "american_football", "baseball", "basketball", "rugby"])]
-    wrong_era = [n for n in names if (m := re.search(r"born_(\d{4})", n)) and (int(m.group(1)) < 1970 or int(m.group(1)) > 2000)]
-    post_2017 = sum(bool(re.search(r"\b20(18|19|20|21|22|23|24)\b", open(f"{wiki_dir}/{f}", errors="ignore").read())) for f in wfiles)
-    pd.DataFrame([
-        {"metric": "Total Wikipedia files in Mori release", "count": len(wfiles), "pct": 100.0, "examples": ""},
-        {"metric": "Files containing post-2017 future data (temporal leakage for 2014-2017 matches)", "count": post_2017,
-         "pct": round(100.0 * post_2017 / len(wfiles), 1), "examples": "2018-2024 career transfers/stats & match results"},
-        {"metric": "Wrong sport disambiguation (gridiron / American football)", "count": len(wrong_sport),
-         "pct": round(100.0 * len(wrong_sport) / len(wfiles), 2), "examples": "; ".join(wrong_sport[:6])},
-        {"metric": "Wrong birth era (<1970 or >2000 for 2014-2017 players)", "count": len(wrong_era),
-         "pct": round(100.0 * len(wrong_era) / len(wfiles), 2), "examples": "; ".join(wrong_era[:6])},
-    ]).to_csv(f"{OUT}/table_mori_corpus_audit.csv", index=False)
+wiki_files = sorted([f for f in os.listdir(wiki_dir) if f.endswith(".txt")])
+names = [urllib.parse.unquote(f[:-4]) for f in wiki_files]
+gridiron = [n for n in names if any(k in n.lower() for k in ["gridiron", "american_football", "baseball", "basketball", "rugby"])]
+wrong_era = [n for n in names if (m := re.search(r"born_(\d{4})", n)) and (int(m.group(1)) < 1970 or int(m.group(1)) > 2000)]
+unique_wrong_entity = sorted(set(gridiron) | set(wrong_era))
 
-print("Saved all 4 forensic & booth tables to", OUT)
+post2017 = 0
+chunks, chunk_files = [], []
+for f in wiki_files:
+    txt = open(f"{wiki_dir}/{f}", encoding="utf-8", errors="ignore").read()
+    if re.search(r"\b20(18|19|20|21|22|23|24)\b", txt):
+        post2017 += 1
+    for i in range(0, max(1, len(txt)), 900):
+        c = txt[i:i + 1000]
+        if c.strip():
+            chunks.append(c)
+            chunk_files.append(f)
+        if i + 1000 >= len(txt):
+            break
+
+# Test TF-IDF top-10 chunk retrieval on the 25 demo clips in sample_metadata.csv
+sample_meta = pd.read_csv(f"{LFCBI}/demo/sample_metadata.csv")
+scbi_all = pd.read_csv(f"{LFCBI}/commentary/scbi-v2.csv", usecols=["game", "half", "start", "end", "text"])
+pif = pd.read_csv(f"{LFCBI}/demo/players_in_frames_sn_gamestate.csv")
+vec = TfidfVectorizer()
+X_chunks = vec.fit_transform(chunks)
+
+queries = []
+for r in sample_meta.itertuples():
+    t = (r.start + r.end) / 2.0
+    u = scbi_all[(scbi_all["game"] == r.game) & (scbi_all["half"] == r.half) & (scbi_all["end"] < t)].sort_values("start")
+    prev_texts, tot_len = [], 0
+    for txt in reversed(u["text"].dropna().tolist()):
+        if tot_len + len(str(txt)) > 256:
+            break
+        prev_texts.append(str(txt))
+        tot_len += len(str(txt)) + 1
+    q = "Previous comments: " + " ".join(reversed(prev_texts))
+    p_sub = pif[(pif["sample_id"] == r.id) & (pif["time"] >= t - 2) & (pif["time"] <= t + 2)].dropna(subset=["long_name"])
+    if len(p_sub):
+        p_str = ", ".join([f"{row.long_name} from {row.team}" for row in p_sub.drop_duplicates(subset=["long_name", "team"]).itertuples()])
+        q = f"Players shown in this frame: {p_str}\n" + q
+    m_year = int(re.search(r"(201\d)-(\d{2})-(\d{2})", r.game).group(1))
+    queries.append((r.id, m_year, f"Game: {r.game}\n" + q))
+
+sims = linear_kernel(vec.transform([q[2] for q in queries]), X_chunks)
+future_chunks_top10 = 0
+for i, (_, m_year, _) in enumerate(queries):
+    for idx in np.argsort(sims[i])[::-1][:10]:
+        years = [int(y) for y in re.findall(r"\b(20(?:1[5-9]|2[0-4]))\b", chunks[idx])]
+        if any(y > m_year for y in years):
+            future_chunks_top10 += 1
+
+audit_df = pd.DataFrame([
+    {"metric": "Total Wikipedia files in Mori release (3,257 reported in paper Sec 3.2)", "count": len(wiki_files), "pct": 100.0, "examples": "8 fewer .txt files in released data/addinfo_retrieval archive"},
+    {"metric": "Files containing 2018-2024 years (static 2024 snapshot for 2014-2017 games)", "count": post2017, "pct": round(post2017 / len(wiki_files) * 100, 1), "examples": "2018-2024 career transfers/stats present in unchunked files"},
+    {"metric": "Retrieved top-10 TF-IDF chunks for 25 demo clips containing years > match_year", "count": future_chunks_top10, "pct": round(future_chunks_top10 / (len(queries) * 10) * 100, 1), "examples": f"{future_chunks_top10}/{len(queries)*10} chunks across 25/25 demo queries contain post-match years"},
+    {"metric": "Wrong sport disambiguation (gridiron / American football)", "count": len(gridiron), "pct": round(len(gridiron) / len(wiki_files) * 100, 2), "examples": "; ".join(gridiron[:5])},
+    {"metric": "Wrong birth era (<1970 or >2000 for 2014-2017 matches)", "count": len(wrong_era), "pct": round(len(wrong_era) / len(wiki_files) * 100, 2), "examples": "; ".join(wrong_era[:5])},
+    {"metric": "Unique wrong-person entity files (union; 1 file overlaps both lists)", "count": len(unique_wrong_entity), "pct": round(len(unique_wrong_entity) / len(wiki_files) * 100, 2), "examples": "Overlap: Joe_Campbell_(American_football,_born_1955)"},
+])
+audit_df.to_csv(f"{OUT}/table_mori_corpus_audit.csv", index=False)
+print("Saved all 4 tables to", OUT)

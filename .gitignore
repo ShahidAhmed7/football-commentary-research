@@ -1,6 +1,9 @@
 # Private research files (local only)
+PROJECT_HANDOFF.md
 preliminary_analysis_guide.md
 preliminary_analysis/pilot_study_plan.*
+preliminary_analysis/outputs/audit_goal_window_ybg1_sample.csv
+preliminary_analysis/outputs/script_runs/
 football-commentary.pdf
 football_commentary_stack_sources.md
 football_tactical_commentary_literature_review_2025_2026.md

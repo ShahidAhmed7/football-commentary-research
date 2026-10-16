@@ -1,0 +1,7 @@
+id,experiment,gpu,gpu_hours,est_cost_usd
+H1,"Zero-shot open decision models on our decisions (Von, Laya, Kev-0.8B/4B, NanoJev)",L4,2.0,1.6
+H2,Fine-tune a ~395M encoder decision model (Apache-2.0) on serialized match state,L4,4.0,3.2
+H3,"Teacher labels for content class (C1-C7) on 99,800 turns, then distil into H2",H100,1.0,3.95
+H4,"Sequence model over event + turn tokens, all 8 languages, vs HGB",L4,3.0,2.4
+H5,Calibration training (Brier + label smoothing) and temperature sweep for H2,L4,1.5,1.2
+H6,"Verifier: does a System-2 sentence match the event state? (H2 head, synthetic negatives)",L4,2.0,1.6
