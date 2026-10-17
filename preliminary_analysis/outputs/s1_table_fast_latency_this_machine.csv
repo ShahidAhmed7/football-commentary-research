@@ -1,4 +1,4 @@
 model,single_call_p50_ms,single_call_p95_ms,per_row_in_batch_of_1000_ms
-3 Full features (HGB),21.559,39.678,0.023
-4 Full features (logistic),0.495,2.199,0.0007
-5 Full features (MLP 64x64),0.504,1.435,0.0008
+3 Full features (HGB),31.571,82.36,0.0675
+4 Full features (logistic),1.241,2.068,0.0009
+5 Full features (MLP 64x64),0.842,1.575,0.0022

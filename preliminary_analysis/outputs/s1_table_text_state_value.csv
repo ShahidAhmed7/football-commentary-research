@@ -2,10 +2,14 @@ target,model,n_test,pos_rate,AUROC,AUROC_CI,AP
 is_colour,Persistence / base rate,20852,0.368,0.7763,"[0.756, 0.792]",0.6192
 is_colour,Numeric only (HGB),20852,0.368,0.8665,"[0.852, 0.881]",0.8072
 is_colour,Numeric only (logistic),20852,0.368,0.8201,"[0.802, 0.835]",0.7253
-is_colour,Numeric + previous-utterance text (logistic),20852,0.368,0.8198,"[0.801, 0.835]",0.7244
-is_colour,"Δ text − numeric (logistic), paired bootstrap",20852,,-0.0002,"[-0.003, 0.002]",
+is_colour,Numeric + previous-utterance text (logistic),20852,0.368,0.8249,"[0.808, 0.839]",0.7334
+is_colour,"Numeric + out-of-fold text score (HGB, stacked)",20852,0.368,0.8683,"[0.854, 0.883]",0.8089
+is_colour,"Δ text − numeric (logistic), paired bootstrap",20852,,0.0048,"[0.003, 0.007]",
+is_colour,"Δ stacked − numeric (HGB), paired bootstrap",20852,,0.0018,"[0.000, 0.003]",
 y_bg,Persistence / base rate,20852,0.196,0.5,"[0.500, 0.500]",0.1958
-y_bg,Numeric only (HGB),20852,0.196,0.6304,"[0.616, 0.645]",0.2778
+y_bg,Numeric only (HGB),20852,0.196,0.6347,"[0.621, 0.648]",0.2833
 y_bg,Numeric only (logistic),20852,0.196,0.6081,"[0.594, 0.623]",0.2568
-y_bg,Numeric + previous-utterance text (logistic),20852,0.196,0.5908,"[0.580, 0.606]",0.2573
-y_bg,"Δ text − numeric (logistic), paired bootstrap",20852,,-0.0173,"[-0.029, -0.006]",
+y_bg,Numeric + previous-utterance text (logistic),20852,0.196,0.6354,"[0.622, 0.651]",0.2829
+y_bg,"Numeric + out-of-fold text score (HGB, stacked)",20852,0.196,0.6548,"[0.641, 0.670]",0.3095
+y_bg,"Δ text − numeric (logistic), paired bootstrap",20852,,0.0273,"[0.021, 0.034]",
+y_bg,"Δ stacked − numeric (HGB), paired bootstrap",20852,,0.0202,"[0.015, 0.026]",
